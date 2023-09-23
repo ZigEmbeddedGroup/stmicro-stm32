@@ -77,37 +77,21 @@ pub const Pin = packed struct(u8) {
             .padding = 0,
         };
     }
-
-    // according to the manual CRL and CRH registers have to be accessed as 32-bit words
-    // We could try accessing them as 4-bit words to acces only the needed bits per pin
-    // But it will probably not work
-    pub const ConfigReg = struct {
-        reg: u32,
-
-        pub inline fn write_pin_config(self: ConfigReg, gpio: Pin, config: u32) void {
-            const offset = if (gpio.number <= 7)
-                gpio.number << 2
-            else
-                (gpio.number - 8) << 2;
-
-            const state = self.reg;
-            const clear_msk: u32 = ~(@as(u32, 0b1111) << offset);
-            // HACK: what?
-            var reg = @constCast(&self.reg);
-            reg.* = (state & clear_msk) | config << offset;
+    inline fn write_pin_config(gpio: Pin, config: u32) void {
+        const port = gpio.get_port();
+        if (gpio.number <= 7) {
+            const offset = @as(u5, gpio.number) << 2;
+            port.CRL.raw &= ~(@as(u32, 0b1111) << offset);
+            port.CRL.raw |= config << offset;
+        } else {
+            const offset = (@as(u5, gpio.number) - 8) << 2;
+            port.CRH.raw &= ~(@as(u32, 0b1111) << offset);
+            port.CRH.raw |= config << offset;
         }
-    };
+    }
 
     fn mask(gpio: Pin) u16 {
         return @as(u16, 1) << gpio.number;
-    }
-
-    fn get_config_reg(gpio: Pin) *volatile ConfigReg {
-        var port = gpio.get_port();
-        return if (gpio.number <= 7)
-            @as(*volatile ConfigReg, @ptrCast(&port.CRL))
-        else
-            @as(*volatile ConfigReg, @ptrCast(&port.CRH));
     }
 
     // NOTE: Im not sure I like this
@@ -133,16 +117,16 @@ pub const Pin = packed struct(u8) {
     }
 
     pub inline fn set_input_mode(gpio: Pin, mode: InputMode) void {
-        var config_reg = gpio.get_config_reg();
-        const config: u32 = @as(u32, @intFromEnum(mode)) << @as(u32, 2);
-        config_reg.write_pin_config(gpio, config);
+        const m_mode = @as(u32, @intFromEnum(mode));
+        const config: u32 = m_mode << 2;
+        gpio.write_pin_config(config);
     }
 
     pub inline fn set_output_mode(gpio: Pin, mode: OutputMode, speed: Speed) void {
-        var config_reg = gpio.get_config_reg();
-        // NOTE: weird error -> u1 cant hold value 2                                            here |
-        const config: u32 = @as(u32, @intFromEnum(speed)) + @as(u32, @intFromEnum(mode)) << @as(u32, 2);
-        config_reg.write_pin_config(gpio, config);
+        const s_speed = @as(u32, @intFromEnum(speed));
+        const m_mode = @as(u32, @intFromEnum(mode));
+        const config: u32 = s_speed + (m_mode << 2);
+        gpio.write_pin_config(config);
     }
 
     pub inline fn set_pull(gpio: Pin, pull: Pull) void {
@@ -164,8 +148,8 @@ pub const Pin = packed struct(u8) {
     pub inline fn put(gpio: Pin, value: u1) void {
         var port = gpio.get_port();
         switch (value) {
-            0 => port.BSSR.raw = gpio.mask() << 16,
-            1 => port.BSSR.raw = gpio.mask(),
+            0 => port.BSRR.raw = gpio.mask() << 16,
+            1 => port.BSRR.raw = gpio.mask(),
         }
     }
 
