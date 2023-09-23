@@ -324,37 +324,38 @@ pub const GlobalConfiguration = struct {
                 _ = RCC.APB2ENR & bit;
             }
 
-            // inline for (@typeInfo(port).Struct.fields) |field| {
-            //     if (@field(config, field.name)) |pin_config| {
-            //         const pin = gpio.Pin.init(@intFromEnum(@field(Port, port_decl.name)), @intFromEnum(@field(Pin, field.name)));
-            //         const func = pin_config.function;
-            //
-            //         // xip = 0,
-            //         // spi,
-            //         // uart,
-            //         // i2c,
-            //         // pio0,
-            //         // pio1,
-            //         // gpck,
-            //         // usb,
-            //         // @"null" = 0x1f,
-            //
-            //         if (func == .SIO) {
-            //             pin.set_function(.sio);
-            //         } else if (comptime func.is_pwm()) {
-            //             pin.set_function(.pwm);
-            //         } else if (comptime func.is_adc()) {
-            //             pin.set_function(.null);
-            //         } else if (comptime func.is_uart_tx() or func.is_uart_rx()) {
-            //             pin.set_function(.uart);
-            //         } else {
-            //             @compileError(std.fmt.comptimePrint("Unimplemented pin function. Please implement setting pin function {s} for GPIO {}", .{
-            //                 @tagName(func),
-            //                 @intFromEnum(pin),
-            //             }));
-            //         }
-            //     }
-            // }
+            inline for (@typeInfo(port).Struct.fields) |field| {
+                if (@field(config, field.name)) |pin_config| {
+                    const pin = gpio.Pin.init(@intFromEnum(@field(Port, port_decl.name)), @intFromEnum(@field(Pin, field.name)));
+                    pin.set_mode(pin_config.mode);
+                    // const func = pin_config.function;
+
+                    // xip = 0,
+                    // spi,
+                    // uart,
+                    // i2c,
+                    // pio0,
+                    // pio1,
+                    // gpck,
+                    // usb,
+                    // @"null" = 0x1f,
+
+                    // if (func == .SIO) {
+                    //     pin.set_function(.sio);
+                    // } else if (comptime func.is_pwm()) {
+                    //     pin.set_function(.pwm);
+                    // } else if (comptime func.is_adc()) {
+                    //     pin.set_function(.null);
+                    // } else if (comptime func.is_uart_tx() or func.is_uart_rx()) {
+                    //     pin.set_function(.uart);
+                    // } else {
+                    //     @compileError(std.fmt.comptimePrint("Unimplemented pin function. Please implement setting pin function {s} for GPIO {}", .{
+                    //         @tagName(func),
+                    //         @intFromEnum(pin),
+                    //     }));
+                    // }
+                }
+            }
 
             if (input_gpios != 0) {
                 inline for (@typeInfo(port).Struct.fields) |field|
