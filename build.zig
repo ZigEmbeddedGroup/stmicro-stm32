@@ -92,7 +92,7 @@ pub const chips = struct {
                     .{ .offset = 0x20000000, .length = ram_size, .kind = .ram },
                 },
                 .register_definition = .{
-                    .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32L0x1.json" },
+                    .svd = .{ .cwd_relative = build_root ++ "/src/chips/STM32L0x1.svd" },
                 },
             },
         };
@@ -130,7 +130,7 @@ pub const chips = struct {
                     .{ .offset = 0x20000000, .length = ram_size, .kind = .ram },
                 },
                 .register_definition = .{
-                    .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32L0x2.json" },
+                    .svd = .{ .cwd_relative = build_root ++ "/src/chips/STM32L0x2.svd" },
                 },
             },
         };
@@ -161,7 +161,7 @@ pub const chips = struct {
                     .{ .offset = 0x20000000, .length = ram_size, .kind = .ram },
                 },
                 .register_definition = .{
-                    .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32L0x3.json" },
+                    .svd = .{ .cwd_relative = build_root ++ "/src/chips/STM32L0x3.svd" },
                 },
             },
         };
