@@ -111,7 +111,7 @@ pub const Pin = packed struct(u8) {
     // NOTE: Im not sure I like this
     //       We could probably calculate an offset from GPIOA?
     pub fn get_port(gpio: Pin) GPIO {
-        switch (gpio.port) {
+        return switch (gpio.port) {
             0 => GPIOA,
             1 => GPIOB,
             2 => GPIOC,
@@ -120,7 +120,7 @@ pub const Pin = packed struct(u8) {
             5 => GPIOF,
             6 => GPIOG,
             7 => @panic("The STM32 only has ports 0..6 (A..G)"),
-        }
+        };
     }
 
     pub inline fn set_mode(gpio: Pin, mode: Mode) void {
