@@ -91,7 +91,7 @@ pub const Pin = packed struct(u8) {
                 (gpio.number - 8) << 2;
 
             const state = self.reg;
-            const clear_msk: u32 = ~(0b1111 << offset);
+            const clear_msk: u32 = ~(@as(u32, 0b1111) << offset);
             self.reg = (state & clear_msk) | config << offset;
         }
     };
@@ -132,7 +132,7 @@ pub const Pin = packed struct(u8) {
 
     pub inline fn set_input_mode(gpio: Pin, mode: InputMode) void {
         const config_reg = gpio.get_config_reg();
-        const config: u32 = @as(u32, @intFromEnum(mode) << 2);
+        const config: u32 = @as(u32, @intFromEnum(mode)) << @as(u32, 2);
         config_reg.write_pin_config(gpio, config);
     }
 
