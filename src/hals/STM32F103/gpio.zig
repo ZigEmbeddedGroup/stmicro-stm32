@@ -92,7 +92,9 @@ pub const Pin = packed struct(u8) {
 
             const state = self.reg;
             const clear_msk: u32 = ~(@as(u32, 0b1111) << offset);
-            self.reg = (state & clear_msk) | config << offset;
+            // HACK: what?
+            var reg = @constCast(&self.reg);
+            reg.* = (state & clear_msk) | config << offset;
         }
     };
 
@@ -103,9 +105,9 @@ pub const Pin = packed struct(u8) {
     fn get_config_reg(gpio: Pin) *volatile ConfigReg {
         var port = gpio.get_port();
         return if (gpio.number <= 7)
-            @ptrCast(&port.CRL.raw)
+            @as(*volatile ConfigReg, @ptrCast(&port.CRL))
         else
-            @ptrCast(&port.CRH.raw);
+            @as(*volatile ConfigReg, @ptrCast(&port.CRH));
     }
 
     // NOTE: Im not sure I like this
