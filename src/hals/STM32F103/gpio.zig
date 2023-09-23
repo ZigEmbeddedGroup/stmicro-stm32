@@ -101,7 +101,7 @@ pub const Pin = packed struct(u8) {
     }
 
     fn get_config_reg(gpio: Pin) *volatile ConfigReg {
-        const port = gpio.get_port();
+        var port = gpio.get_port();
         return if (gpio.number <= 7)
             @ptrCast(&port.CRL.raw)
         else
@@ -131,20 +131,20 @@ pub const Pin = packed struct(u8) {
     }
 
     pub inline fn set_input_mode(gpio: Pin, mode: InputMode) void {
-        const config_reg = gpio.get_config_reg();
+        var config_reg = gpio.get_config_reg();
         const config: u32 = @as(u32, @intFromEnum(mode)) << @as(u32, 2);
         config_reg.write_pin_config(gpio, config);
     }
 
     pub inline fn set_output_mode(gpio: Pin, mode: OutputMode, speed: Speed) void {
-        const config_reg = gpio.get_config_reg();
+        var config_reg = gpio.get_config_reg();
         // NOTE: weird error -> u1 cant hold value 2                                            here |
         const config: u32 = @as(u32, @intFromEnum(speed)) + @as(u32, @intFromEnum(mode)) << @as(u32, 2);
         config_reg.write_pin_config(gpio, config);
     }
 
     pub inline fn set_pull(gpio: Pin, pull: Pull) void {
-        const port = gpio.get_port();
+        var port = gpio.get_port();
         switch (pull) {
             .up => port.BSRR.raw = gpio.mask(),
             .down => port.BRR.raw = gpio.mask(),
@@ -160,7 +160,7 @@ pub const Pin = packed struct(u8) {
     }
 
     pub inline fn put(gpio: Pin, value: u1) void {
-        const port = gpio.get_port();
+        var port = gpio.get_port();
         switch (value) {
             0 => port.BSSR.raw = gpio.mask() << 16,
             1 => port.BSSR.raw = gpio.mask(),
@@ -168,7 +168,7 @@ pub const Pin = packed struct(u8) {
     }
 
     pub inline fn toggle(gpio: Pin) void {
-        const port = gpio.get_port();
+        var port = gpio.get_port();
         port.ODR.raw ^= gpio.mask();
     }
 };
