@@ -6,6 +6,8 @@ fn root() []const u8 {
 }
 const build_root = root();
 
+const KiB = 1024;
+
 ////////////////////////////////////////
 //      MicroZig Gen 2 Interface      //
 ////////////////////////////////////////
@@ -22,8 +24,8 @@ pub const chips = struct {
             .name = "STM32F103",
             .cpu = .cortex_m3,
             .memory_regions = &.{
-                .{ .offset = 0x08000000, .length = 64 * 1024, .kind = .flash },
-                .{ .offset = 0x20000000, .length = 20 * 1024, .kind = .ram },
+                .{ .offset = 0x08000000, .length = 64 * KiB, .kind = .flash },
+                .{ .offset = 0x20000000, .length = 20 * KiB, .kind = .ram },
             },
             .register_definition = .{
                 .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32F103.json" },
@@ -40,8 +42,8 @@ pub const chips = struct {
             .name = "STM32F303",
             .cpu = .cortex_m4,
             .memory_regions = &.{
-                .{ .offset = 0x08000000, .length = 256 * 1024, .kind = .flash },
-                .{ .offset = 0x20000000, .length = 40 * 1024, .kind = .ram },
+                .{ .offset = 0x08000000, .length = 256 * KiB, .kind = .flash },
+                .{ .offset = 0x20000000, .length = 40 * KiB, .kind = .ram },
             },
             .register_definition = .{
                 .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32F303.json" },
@@ -55,9 +57,9 @@ pub const chips = struct {
             .name = "STM32F407",
             .cpu = .cortex_m4,
             .memory_regions = &.{
-                .{ .offset = 0x08000000, .length = 1024 * 1024, .kind = .flash },
-                .{ .offset = 0x20000000, .length = 128 * 1024, .kind = .ram },
-                .{ .offset = 0x10000000, .length = 64 * 1024, .kind = .ram }, // CCM RAM
+                .{ .offset = 0x08000000, .length = 1024 * KiB, .kind = .flash },
+                .{ .offset = 0x20000000, .length = 128 * KiB, .kind = .ram },
+                .{ .offset = 0x10000000, .length = 64 * KiB, .kind = .ram }, // CCM RAM
             },
             .register_definition = .{
                 .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32F407.json" },
@@ -71,9 +73,9 @@ pub const chips = struct {
             .name = "STM32F429",
             .cpu = .cortex_m4,
             .memory_regions = &.{
-                .{ .offset = 0x08000000, .length = 2048 * 1024, .kind = .flash },
-                .{ .offset = 0x20000000, .length = 192 * 1024, .kind = .ram },
-                .{ .offset = 0x10000000, .length = 64 * 1024, .kind = .ram }, // CCM RAM
+                .{ .offset = 0x08000000, .length = 2048 * KiB, .kind = .flash },
+                .{ .offset = 0x20000000, .length = 192 * KiB, .kind = .ram },
+                .{ .offset = 0x10000000, .length = 64 * KiB, .kind = .ram }, // CCM RAM
             },
             .register_definition = .{
                 .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32F429.json" },
