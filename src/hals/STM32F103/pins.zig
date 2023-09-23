@@ -208,7 +208,7 @@ pub const GlobalConfiguration = struct {
                 if (input_gpios != 0) {
                     inline for (@typeInfo(Port.Configuration).Struct.fields) |field|
                         if (@field(port_config, field.name)) |pin_config| {
-                            const pin = gpio.Pin.init(@intFromEnum(@field(Port, port_field.name)), @intFromEnum(@field(Pin, field.name)));
+                            var pin = gpio.Pin.init(@intFromEnum(@field(Port, port_field.name)), @intFromEnum(@field(Pin, field.name)));
                             const pull = pin_config.pull orelse continue;
                             if (comptime pin_config.get_mode() != .input)
                                 @compileError("Only input pins can have pull up/down enabled");
