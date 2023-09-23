@@ -12,16 +12,6 @@ const gpio = @import("gpio.zig");
 // const adc = @import("adc.zig");
 // const resets = @import("resets.zig");
 
-pub const Port = enum {
-    GPIOA,
-    GPIOB,
-    GPIOC,
-    GPIOD,
-    GPIOE,
-    GPIOF,
-    GPIOG,
-};
-
 pub const Pin = enum {
     PIN0,
     PIN1,
@@ -95,11 +85,11 @@ pub fn GPIO(comptime port: u3, comptime num: u4, comptime mode: gpio.Mode) type 
 pub fn Pins(comptime config: GlobalConfiguration) type {
     comptime {
         var fields: []const StructField = &.{};
-        for (@typeInfo(GlobalConfiguration).Struct.decls) |port_decl| {
-            const port = @field(config, port_decl.name);
+        for (@typeInfo(GlobalConfiguration).Struct.fields) |port_field| {
+            const port_config = @field(config, port_field.name);
 
-            for (@typeInfo(port).Structs.fields) |field| {
-                if (@field(port, field.name)) |pin_config| {
+            for (@typeInfo(Port.Configuration).Structs.fields) |field| {
+                if (@field(port_config, field.name)) |pin_config| {
                     var pin_field = StructField{
                         .is_comptime = false,
                         .default_value = null,
@@ -111,35 +101,7 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                     };
 
                     pin_field.name = pin_config.name orelse field.name;
-                    pin_field.type = GPIO(@intFromEnum(@field(Port, port_decl.name)), @intFromEnum(@field(Pin, field.name)), pin_config.mode orelse .{ .input = .{.floating} });
-                    // if (pin_config.function == .SIO) {} else if (pin_config.function.is_pwm()) {
-                    //     pin_field.name = pin_config.name orelse @tagName(pin_config.function);
-                    //     pin_field.type = pwm.Pwm(pin_config.function.pwm_slice(), pin_config.function.pwm_channel());
-                    // } else if (pin_config.function.is_adc()) {
-                    //     pin_field.name = pin_config.name orelse @tagName(pin_config.function);
-                    //     pin_field.type = adc.Input;
-                    //     pin_field.default_value = @as(?*const anyopaque, @ptrCast(switch (pin_config.function) {
-                    //         .ADC0 => &adc.Input.ain0,
-                    //         .ADC1 => &adc.Input.ain1,
-                    //         .ADC2 => &adc.Input.ain2,
-                    //         .ADC3 => &adc.Input.ain3,
-                    //         else => unreachable,
-                    //     }));
-                    // } else {
-                    //     continue;
-                    // }
-
-                    // if (pin_field.default_value == null) {
-                    //     if (@sizeOf(pin_field.field_type) > 0) {
-                    //         pin_field.default_value = @ptrCast(?*const anyopaque, &pin_field.field_type{});
-                    //     } else {
-                    //         const Struct = struct {
-                    //             magic_field: pin_field.field_type = .{},
-                    //         };
-                    //         pin_field.default_value = @typeInfo(Struct).Struct.fields[0].default_value;
-                    //     }
-                    // }
-
+                    pin_field.type = GPIO(@intFromEnum(@field(Port, port_field.name)), @intFromEnum(@field(Pin, field.name)), pin_config.mode orelse .{ .input = .{.floating} });
                     pin_field.alignment = @alignOf(field.type);
 
                     fields = fields ++ &[_]StructField{pin_field};
@@ -158,158 +120,71 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
     }
 }
 
+pub const Port = enum {
+    GPIOA,
+    GPIOB,
+    GPIOC,
+    GPIOD,
+    GPIOE,
+    GPIOF,
+    GPIOG,
+    pub const Configuration = struct {
+        PIN0: ?Pin.Configuration = null,
+        PIN1: ?Pin.Configuration = null,
+        PIN2: ?Pin.Configuration = null,
+        PIN3: ?Pin.Configuration = null,
+        PIN4: ?Pin.Configuration = null,
+        PIN5: ?Pin.Configuration = null,
+        PIN6: ?Pin.Configuration = null,
+        PIN7: ?Pin.Configuration = null,
+        PIN8: ?Pin.Configuration = null,
+        PIN9: ?Pin.Configuration = null,
+        PIN10: ?Pin.Configuration = null,
+        PIN11: ?Pin.Configuration = null,
+        PIN12: ?Pin.Configuration = null,
+        PIN13: ?Pin.Configuration = null,
+        PIN14: ?Pin.Configuration = null,
+        PIN15: ?Pin.Configuration = null,
+
+        comptime {
+            const pin_field_count = @typeInfo(Pin).Enum.fields.len;
+            const config_field_count = @typeInfo(Configuration).Struct.fields.len;
+            if (pin_field_count != config_field_count)
+                @compileError(comptimePrint("{} {}", .{ pin_field_count, config_field_count }));
+        }
+    };
+};
+
 pub const GlobalConfiguration = struct {
-    pub const GPIOA = struct {
-        PIN0: ?Pin.Configuration = null,
-        PIN1: ?Pin.Configuration = null,
-        PIN2: ?Pin.Configuration = null,
-        PIN3: ?Pin.Configuration = null,
-        PIN4: ?Pin.Configuration = null,
-        PIN5: ?Pin.Configuration = null,
-        PIN6: ?Pin.Configuration = null,
-        PIN7: ?Pin.Configuration = null,
-        PIN8: ?Pin.Configuration = null,
-        PIN9: ?Pin.Configuration = null,
-        PIN10: ?Pin.Configuration = null,
-        PIN11: ?Pin.Configuration = null,
-        PIN12: ?Pin.Configuration = null,
-        PIN13: ?Pin.Configuration = null,
-        PIN14: ?Pin.Configuration = null,
-        PIN15: ?Pin.Configuration = null,
-    };
-
-    pub const GPIOB = struct {
-        PIN0: ?Pin.Configuration = null,
-        PIN1: ?Pin.Configuration = null,
-        PIN2: ?Pin.Configuration = null,
-        PIN3: ?Pin.Configuration = null,
-        PIN4: ?Pin.Configuration = null,
-        PIN5: ?Pin.Configuration = null,
-        PIN6: ?Pin.Configuration = null,
-        PIN7: ?Pin.Configuration = null,
-        PIN8: ?Pin.Configuration = null,
-        PIN9: ?Pin.Configuration = null,
-        PIN10: ?Pin.Configuration = null,
-        PIN11: ?Pin.Configuration = null,
-        PIN12: ?Pin.Configuration = null,
-        PIN13: ?Pin.Configuration = null,
-        PIN14: ?Pin.Configuration = null,
-        PIN15: ?Pin.Configuration = null,
-    };
-
-    pub const GPIOC = struct {
-        PIN0: ?Pin.Configuration = null,
-        PIN1: ?Pin.Configuration = null,
-        PIN2: ?Pin.Configuration = null,
-        PIN3: ?Pin.Configuration = null,
-        PIN4: ?Pin.Configuration = null,
-        PIN5: ?Pin.Configuration = null,
-        PIN6: ?Pin.Configuration = null,
-        PIN7: ?Pin.Configuration = null,
-        PIN8: ?Pin.Configuration = null,
-        PIN9: ?Pin.Configuration = null,
-        PIN10: ?Pin.Configuration = null,
-        PIN11: ?Pin.Configuration = null,
-        PIN12: ?Pin.Configuration = null,
-        PIN13: ?Pin.Configuration = null,
-        PIN14: ?Pin.Configuration = null,
-        PIN15: ?Pin.Configuration = null,
-    };
-
-    pub const GPIOD = struct {
-        PIN0: ?Pin.Configuration = null,
-        PIN1: ?Pin.Configuration = null,
-        PIN2: ?Pin.Configuration = null,
-        PIN3: ?Pin.Configuration = null,
-        PIN4: ?Pin.Configuration = null,
-        PIN5: ?Pin.Configuration = null,
-        PIN6: ?Pin.Configuration = null,
-        PIN7: ?Pin.Configuration = null,
-        PIN8: ?Pin.Configuration = null,
-        PIN9: ?Pin.Configuration = null,
-        PIN10: ?Pin.Configuration = null,
-        PIN11: ?Pin.Configuration = null,
-        PIN12: ?Pin.Configuration = null,
-        PIN13: ?Pin.Configuration = null,
-        PIN14: ?Pin.Configuration = null,
-        PIN15: ?Pin.Configuration = null,
-    };
-
-    pub const GPIOF = struct {
-        PIN0: ?Pin.Configuration = null,
-        PIN1: ?Pin.Configuration = null,
-        PIN2: ?Pin.Configuration = null,
-        PIN3: ?Pin.Configuration = null,
-        PIN4: ?Pin.Configuration = null,
-        PIN5: ?Pin.Configuration = null,
-        PIN6: ?Pin.Configuration = null,
-        PIN7: ?Pin.Configuration = null,
-        PIN8: ?Pin.Configuration = null,
-        PIN9: ?Pin.Configuration = null,
-        PIN10: ?Pin.Configuration = null,
-        PIN11: ?Pin.Configuration = null,
-        PIN12: ?Pin.Configuration = null,
-        PIN13: ?Pin.Configuration = null,
-        PIN14: ?Pin.Configuration = null,
-        PIN15: ?Pin.Configuration = null,
-    };
-
-    pub const GPIOG = struct {
-        PIN0: ?Pin.Configuration = null,
-        PIN1: ?Pin.Configuration = null,
-        PIN2: ?Pin.Configuration = null,
-        PIN3: ?Pin.Configuration = null,
-        PIN4: ?Pin.Configuration = null,
-        PIN5: ?Pin.Configuration = null,
-        PIN6: ?Pin.Configuration = null,
-        PIN7: ?Pin.Configuration = null,
-        PIN8: ?Pin.Configuration = null,
-        PIN9: ?Pin.Configuration = null,
-        PIN10: ?Pin.Configuration = null,
-        PIN11: ?Pin.Configuration = null,
-        PIN12: ?Pin.Configuration = null,
-        PIN13: ?Pin.Configuration = null,
-        PIN14: ?Pin.Configuration = null,
-        PIN15: ?Pin.Configuration = null,
-    };
+    GPIOA: ?Port.Configuration = null,
+    GPIOB: ?Port.Configuration = null,
+    GPIOC: ?Port.Configuration = null,
+    GPIOD: ?Port.Configuration = null,
+    GPIOE: ?Port.Configuration = null,
+    GPIOF: ?Port.Configuration = null,
+    GPIOG: ?Port.Configuration = null,
 
     comptime {
-        const pin_field_count = @typeInfo(Pin).Enum.fields.len;
-        inline for (@typeInfo(GlobalConfiguration).Struct.decls) |decl| {
-            const port = @field(GlobalConfiguration, decl.name);
-            const config_field_count = @typeInfo(port).Struct.fields.len;
-            if (pin_field_count != config_field_count)
-                @compileError(comptimePrint("{s} {} {}", .{ decl.name, pin_field_count, config_field_count }));
-        }
+        const port_field_count = @typeInfo(Port).Enum.fields.len;
+        const config_field_count = @typeInfo(GlobalConfiguration).Struct.fields.len;
+        if (port_field_count != config_field_count)
+            @compileError(comptimePrint("{} {}", .{ port_field_count, config_field_count }));
     }
 
     pub fn apply(comptime config: GlobalConfiguration) Pins(config) {
-        inline for (@typeInfo(GlobalConfiguration).Struct.decls) |port_decl| {
-            const port = @field(GlobalConfiguration, port_decl.name);
+        inline for (@typeInfo(GlobalConfiguration).Struct.fields) |port_field| {
+            const port_config = @field(GlobalConfiguration, port_field.name);
             comptime var input_gpios: u16 = 0;
             comptime var output_gpios: u16 = 0;
-            // comptime var has_adc = false;
-            // comptime var has_pwm = false;
             comptime {
-                inline for (@typeInfo(port).Struct.fields) |field|
-                    if (@field(config, field.name)) |pin_config| {
+                inline for (@typeInfo(Port.Configuration).Struct.fields) |field|
+                    if (@field(port_config, field.name)) |pin_config| {
                         const gpio_num = @intFromEnum(@field(Pin, field.name));
-                        // if (0 == function_table[@intFromEnum(pin_config.function)][gpio_num])
-                        //     @compileError(comptimePrint("{s} {s} cannot be configured for {}", .{ port_decl.name, field.name, pin_config.function }));
 
-                        // if (pin_config.function == .SIO) {
                         switch (pin_config.get_mode()) {
                             .input => input_gpios |= 1 << gpio_num,
                             .output => output_gpios |= 1 << gpio_num,
                         }
-                        // }
-
-                        // if (pin_config.function.is_adc()) {
-                        //     has_adc = true;
-                        // }
-                        // if (pin_config.function.is_pwm()) {
-                        //     has_pwm = true;
-                        // }
                     };
             }
 
@@ -317,49 +192,23 @@ pub const GlobalConfiguration = struct {
             const used_gpios = comptime input_gpios | output_gpios;
 
             if (used_gpios != 0) {
-                const bit = @as(u32, 1 << @intFromEnum(@field(Port, port_decl.name)));
+                const bit = @as(u32, 1 << @intFromEnum(@field(Port, port_field.name)));
                 RCC.APB2ENR |= bit;
                 // Delay after setting
                 _ = RCC.APB2ENR & bit;
             }
 
-            inline for (@typeInfo(port).Struct.fields) |field| {
-                if (@field(config, field.name)) |pin_config| {
-                    const pin = gpio.Pin.init(@intFromEnum(@field(Port, port_decl.name)), @intFromEnum(@field(Pin, field.name)));
+            inline for (@typeInfo(Port.Configuration).Struct.fields) |field| {
+                if (@field(port_config, field.name)) |pin_config| {
+                    const pin = gpio.Pin.init(@intFromEnum(@field(Port, port_field.name)), @intFromEnum(@field(Pin, field.name)));
                     pin.set_mode(pin_config.mode);
-                    // const func = pin_config.function;
-
-                    // xip = 0,
-                    // spi,
-                    // uart,
-                    // i2c,
-                    // pio0,
-                    // pio1,
-                    // gpck,
-                    // usb,
-                    // @"null" = 0x1f,
-
-                    // if (func == .SIO) {
-                    //     pin.set_function(.sio);
-                    // } else if (comptime func.is_pwm()) {
-                    //     pin.set_function(.pwm);
-                    // } else if (comptime func.is_adc()) {
-                    //     pin.set_function(.null);
-                    // } else if (comptime func.is_uart_tx() or func.is_uart_rx()) {
-                    //     pin.set_function(.uart);
-                    // } else {
-                    //     @compileError(std.fmt.comptimePrint("Unimplemented pin function. Please implement setting pin function {s} for GPIO {}", .{
-                    //         @tagName(func),
-                    //         @intFromEnum(pin),
-                    //     }));
-                    // }
                 }
             }
 
             if (input_gpios != 0) {
-                inline for (@typeInfo(port).Struct.fields) |field|
-                    if (@field(config, field.name)) |pin_config| {
-                        const pin = gpio.Pin.init(@intFromEnum(@field(Port, port_decl.name)), @intFromEnum(@field(Pin, field.name)));
+                inline for (@typeInfo(Port.Configuration).Struct.fields) |field|
+                    if (@field(port_config, field.name)) |pin_config| {
+                        const pin = gpio.Pin.init(@intFromEnum(@field(Port, port_field.name)), @intFromEnum(@field(Pin, field.name)));
                         const pull = pin_config.pull orelse continue;
                         if (comptime pin_config.get_mode() != .input)
                             @compileError("Only input pins can have pull up/down enabled");
@@ -367,11 +216,6 @@ pub const GlobalConfiguration = struct {
                         pin.set_pull(pull);
                     };
             }
-
-            // if (has_adc) {
-            //     adc.init();
-            // }
-
         }
 
         // fields in the Pins(config) type should be zero sized, so we just
