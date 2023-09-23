@@ -138,7 +138,8 @@ pub const Pin = packed struct(u8) {
 
     pub inline fn set_output_mode(gpio: Pin, mode: OutputMode, speed: Speed) void {
         const config_reg = gpio.get_config_reg();
-        const config: u32 = @as(u32, @intFromEnum(speed)) + @as(u32, @intFromEnum(mode) << 2);
+        // NOTE: weird error -> u1 cant hold value 2                                            here |
+        const config: u32 = @as(u32, @intFromEnum(speed)) + @as(u32, @intFromEnum(mode)) << @as(u32, 2);
         config_reg.write_pin_config(gpio, config);
     }
 
