@@ -126,7 +126,7 @@ pub const Pin = packed struct(u8) {
     pub inline fn set_mode(gpio: Pin, mode: Mode) void {
         switch (mode) {
             .input => |in| gpio.set_input_mode(in),
-            .output => |out| gpio.set_output_mode(out, .{.max_2MHz}),
+            .output => |out| gpio.set_output_mode(out, .max_2MHz),
         }
     }
 
