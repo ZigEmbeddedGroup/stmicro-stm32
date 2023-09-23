@@ -70,7 +70,7 @@ pub const Pin = packed struct(u8) {
     port: u3,
     padding: u1,
 
-    pub fn init(comptime port: u3, comptime number: u4) Pin {
+    pub fn init(port: u3, number: u4) Pin {
         return Pin{
             .number = number,
             .port = port,
