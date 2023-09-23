@@ -110,25 +110,24 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
                         .alignment = undefined,
                     };
 
-                    if (pin_config.function == .SIO) {
-                        pin_field.name = pin_config.name orelse field.name;
-                        pin_field.type = GPIO(@intFromEnum(@field(Port, port_decl.name)), @intFromEnum(@field(Pin, field.name)), pin_config.mode orelse .input);
-                    } else if (pin_config.function.is_pwm()) {
-                        // pin_field.name = pin_config.name orelse @tagName(pin_config.function);
-                        // pin_field.type = pwm.Pwm(pin_config.function.pwm_slice(), pin_config.function.pwm_channel());
-                    } else if (pin_config.function.is_adc()) {
-                        // pin_field.name = pin_config.name orelse @tagName(pin_config.function);
-                        // pin_field.type = adc.Input;
-                        // pin_field.default_value = @as(?*const anyopaque, @ptrCast(switch (pin_config.function) {
-                        //     .ADC0 => &adc.Input.ain0,
-                        //     .ADC1 => &adc.Input.ain1,
-                        //     .ADC2 => &adc.Input.ain2,
-                        //     .ADC3 => &adc.Input.ain3,
-                        //     else => unreachable,
-                        // }));
-                    } else {
-                        continue;
-                    }
+                    pin_field.name = pin_config.name orelse field.name;
+                    pin_field.type = GPIO(@intFromEnum(@field(Port, port_decl.name)), @intFromEnum(@field(Pin, field.name)), pin_config.mode orelse .{ .input = .{.floating} });
+                    // if (pin_config.function == .SIO) {} else if (pin_config.function.is_pwm()) {
+                    //     pin_field.name = pin_config.name orelse @tagName(pin_config.function);
+                    //     pin_field.type = pwm.Pwm(pin_config.function.pwm_slice(), pin_config.function.pwm_channel());
+                    // } else if (pin_config.function.is_adc()) {
+                    //     pin_field.name = pin_config.name orelse @tagName(pin_config.function);
+                    //     pin_field.type = adc.Input;
+                    //     pin_field.default_value = @as(?*const anyopaque, @ptrCast(switch (pin_config.function) {
+                    //         .ADC0 => &adc.Input.ain0,
+                    //         .ADC1 => &adc.Input.ain1,
+                    //         .ADC2 => &adc.Input.ain2,
+                    //         .ADC3 => &adc.Input.ain3,
+                    //         else => unreachable,
+                    //     }));
+                    // } else {
+                    //     continue;
+                    // }
 
                     // if (pin_field.default_value == null) {
                     //     if (@sizeOf(pin_field.field_type) > 0) {
