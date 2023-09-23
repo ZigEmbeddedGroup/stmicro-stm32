@@ -29,6 +29,9 @@ pub const chips = struct {
                 .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32F103.json" },
             },
         },
+        .hal = .{
+            .source_file = .{ .cwd_relative = build_root ++ "/src/hals/STM32F103/hal.zig" },
+        },
     };
 
     pub const stm32f303vc = .{

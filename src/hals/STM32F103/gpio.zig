@@ -2,7 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 const microzig = @import("microzig");
-const peripherals = microzig.chip.peripherals;
+pub const peripherals = microzig.chip.peripherals;
 
 const GPIOA = peripherals.GPIOA;
 const GPIOB = peripherals.GPIOB;
@@ -12,9 +12,11 @@ const GPIOE = peripherals.GPIOE;
 const GPIOF = peripherals.GPIOF;
 const GPIOG = peripherals.GPIOG;
 
-const Port = @TypeOf(GPIOA);
+const GPIO = @TypeOf(GPIOA);
 
 const log = std.log.scoped(.gpio);
+
+pub const Function = enum {};
 
 pub const Mode = union(enum) {
     input: InputMode,
@@ -57,15 +59,24 @@ pub const Enabled = enum {
 };
 
 pub const Pull = enum {
-    floating,
     up,
     down,
 };
 
+// NOTE: With this current setup, every time we want to do anythting we go through a switch
+//       Do we want this?
 pub const Pin = packed struct(u8) {
     number: u4,
     port: u3,
     padding: u1,
+
+    pub fn init(comptime port: u3, comptime number: u4) Pin {
+        return Pin{
+            .number = number,
+            .port = port,
+            .padding = 0,
+        };
+    }
 
     // according to the manual CRL and CRH registers have to be accessed as 32-bit words
     // We could try accessing them as 4-bit words to acces only the needed bits per pin
@@ -73,7 +84,7 @@ pub const Pin = packed struct(u8) {
     pub const ConfigReg = struct {
         reg: u32,
 
-        pub inline fn write_pin_config(self: ConfigReg, gpio: Pin, config: u4) void {
+        pub inline fn write_pin_config(self: ConfigReg, gpio: Pin, config: u32) void {
             const offset = if (gpio.number <= 7)
                 gpio.number << 2
             else
@@ -97,7 +108,9 @@ pub const Pin = packed struct(u8) {
             @ptrCast(&port.CRH.raw);
     }
 
-    pub fn get_port(gpio: Pin) Port {
+    // NOTE: Im not sure I like this
+    //       We could probably calculate an offset from GPIOA?
+    pub fn get_port(gpio: Pin) GPIO {
         switch (gpio.port) {
             0 => GPIOA,
             1 => GPIOB,
@@ -110,10 +123,10 @@ pub const Pin = packed struct(u8) {
         }
     }
 
-    pub inline fn set_mode(gpio: Pin, mode: Mode, speed: ?Speed) void {
+    pub inline fn set_mode(gpio: Pin, mode: Mode) void {
         switch (mode) {
             .input => |in| gpio.set_input_mode(in),
-            .output => |out| gpio.set_output_mode(out, speed.?),
+            .output => |out| gpio.set_output_mode(out, .{.max_2MHz}),
         }
     }
 
@@ -129,6 +142,14 @@ pub const Pin = packed struct(u8) {
         config_reg.write_pin_config(gpio, config);
     }
 
+    pub inline fn set_pull(gpio: Pin, pull: Pull) void {
+        const port = gpio.get_port();
+        switch (pull) {
+            .up => port.BSRR.raw = gpio.mask(),
+            .down => port.BRR.raw = gpio.mask(),
+        }
+    }
+
     pub inline fn read(gpio: Pin) u1 {
         const port = gpio.get_port();
         return if (port.IDR.raw & gpio.mask() != 0)
@@ -140,8 +161,13 @@ pub const Pin = packed struct(u8) {
     pub inline fn put(gpio: Pin, value: u1) void {
         const port = gpio.get_port();
         switch (value) {
-            0 => port.BSSR = gpio.mask() << 16,
-            1 => port.BSSR = gpio.mask(),
+            0 => port.BSSR.raw = gpio.mask() << 16,
+            1 => port.BSSR.raw = gpio.mask(),
         }
+    }
+
+    pub inline fn toggle(gpio: Pin) void {
+        const port = gpio.get_port();
+        port.ODR.raw ^= gpio.mask();
     }
 };
