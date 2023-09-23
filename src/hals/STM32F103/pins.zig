@@ -88,7 +88,7 @@ pub fn Pins(comptime config: GlobalConfiguration) type {
         for (@typeInfo(GlobalConfiguration).Struct.fields) |port_field| {
             const port_config = @field(config, port_field.name);
 
-            for (@typeInfo(Port.Configuration).Structs.fields) |field| {
+            for (@typeInfo(Port.Configuration).Struct.fields) |field| {
                 if (@field(port_config, field.name)) |pin_config| {
                     var pin_field = StructField{
                         .is_comptime = false,
