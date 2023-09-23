@@ -201,7 +201,7 @@ pub const GlobalConfiguration = struct {
                 inline for (@typeInfo(Port.Configuration).Struct.fields) |field| {
                     if (@field(port_config, field.name)) |pin_config| {
                         const pin = gpio.Pin.init(@intFromEnum(@field(Port, port_field.name)), @intFromEnum(@field(Pin, field.name)));
-                        pin.set_mode(pin_config.mode);
+                        pin.set_mode(pin_config.mode.?);
                     }
                 }
 
