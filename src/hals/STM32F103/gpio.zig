@@ -132,13 +132,13 @@ pub const Pin = packed struct(u8) {
 
     pub inline fn set_input_mode(gpio: Pin, mode: InputMode) void {
         const config_reg = gpio.get_config_reg();
-        const config = @intFromEnum(mode) << 2;
+        const config: u32 = @as(u32, @intFromEnum(mode) << 2);
         config_reg.write_pin_config(gpio, config);
     }
 
     pub inline fn set_output_mode(gpio: Pin, mode: OutputMode, speed: Speed) void {
         const config_reg = gpio.get_config_reg();
-        const config = @intFromEnum(speed) + @intFromEnum(mode) << 2;
+        const config: u32 = @as(u32, @intFromEnum(speed)) + @as(u32, @intFromEnum(mode) << 2);
         config_reg.write_pin_config(gpio, config);
     }
 
