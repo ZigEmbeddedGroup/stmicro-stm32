@@ -193,9 +193,9 @@ pub const GlobalConfiguration = struct {
 
                 if (used_gpios != 0) {
                     const bit = @as(u32, 1 << @intFromEnum(@field(Port, port_field.name)));
-                    RCC.APB2ENR |= bit;
+                    RCC.APB2ENR.raw |= bit;
                     // Delay after setting
-                    _ = RCC.APB2ENR & bit;
+                    _ = RCC.APB2ENR.raw & bit;
                 }
 
                 inline for (@typeInfo(Port.Configuration).Struct.fields) |field| {
