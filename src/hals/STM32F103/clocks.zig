@@ -7,6 +7,7 @@ const comptimePrint = std.fmt.comptimePrint;
 const microzig = @import("microzig");
 const peripherals = microzig.chip.peripherals;
 const RCC = peripherals.RCC;
+const FLASH = peripherals.FLASH;
 
 const MHz = 1_000_000;
 
@@ -96,6 +97,15 @@ pub const GlobalConfiguration = struct {
         };
 
         const pll_enabled = config.pll != null;
+
+        FLASH.ACR.modify(.{ .PRFTBE = 1 });
+        if (sys.freq <= 24 * MHz) {
+            FLASH.ACR.modify(.{ .LATENCY = 0b000 });
+        } else if (sys.freq <= 48 * MHz) {
+            FLASH.ACR.modify(.{ .LATENCY = 0b001 });
+        } else {
+            FLASH.ACR.modify(.{ .LATENCY = 0b010 });
+        }
 
         // NOTE: HSI has to be enabled until sys clock is changed
 
