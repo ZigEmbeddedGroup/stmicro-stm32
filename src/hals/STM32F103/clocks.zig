@@ -43,24 +43,31 @@ pub const GlobalConfiguration = struct {
     pub fn apply(comptime config: GlobalConfiguration) void {
         const sys = config.sys orelse .{ .source = .HSI, .freq = 8 * MHz };
 
-        if (sys.freq > 72_000_000) {
-            @compileError(comptimePrint("Sys frequency is too high. Max frequency: 72 MHz, got {} MHz", sys.freq / MHz));
-        }
+        comptime {
+            if (sys.freq > 72_000_000) {
+                @compileError(comptimePrint("Sys frequency is too high. Max frequency: 72 MHz, got {} MHz", .{sys.freq / MHz}));
+            }
 
-        if (config.pll) |pll| {
-            if (pll.freq > 72 * MHz) {
-                @compileError(comptimePrint("PLL frequency is too high. Max frequency: 72 MHz, got {} MHz", pll.freq / MHz));
+            if (config.pll) |pll| {
+                if (pll.freq > 72 * MHz) {
+                    @compileError(comptimePrint("PLL frequency is too high. Max frequency: 72 MHz, got {} MHz", .{pll.freq / MHz}));
+                }
+            }
+
+            if (sys.source == .PLL) {
+                if (config.pll) |pll| {
+                    if (pll.freq != sys.freq) {
+                        @compileError(comptimePrint("Incompatible sys frequency {} MHz with PLL source {} MHz", .{ sys.freq / MHz, pll.freq / MHz }));
+                    }
+                } else {
+                    @compileError("PLL used as source for sys but not configured");
+                }
             }
         }
-
-        if (sys.source == .PLL and !config.pll) {
-            @compileError("PLL used as source for sys but not configured");
-        }
-
         const hsi_enabled = hsi_blk: {
             if (sys.source == .HSI) {
                 if (sys.freq != 8 * MHz) {
-                    @compileError(comptimePrint("Incompatible sys frequency {} MHz with HSI source 8 MHz", sys.freq / MHz));
+                    @compileError(comptimePrint("Incompatible sys frequency {} MHz with HSI source 8 MHz", .{sys.freq / MHz}));
                 }
                 break :hsi_blk true;
             }
@@ -107,7 +114,7 @@ pub const GlobalConfiguration = struct {
         if (pll_enabled) {
             // we need to turn off the pll to configure it
             RCC.CR.modify(.{ .PLLON = 0 });
-            while (RCC.CR.read().PLLREADY != 0) {}
+            while (RCC.CR.read().PLLRDY != 0) {}
 
             const pll_config = config.pll.?;
             switch (pll_config.source) {
@@ -118,28 +125,30 @@ pub const GlobalConfiguration = struct {
                 .HSE => {
                     const mul = pll_config.freq / (8 * MHz);
                     RCC.CFGR.modify(.{ .PLLSRC = 1, .PLLTXPRE = 0, .PLLMUL = getPLLmul(mul) });
-                    @compileError("TODO: figure out HSE frequency. Probably 8MHz");
+                    @compileError("TODO: figure out HSE frequency. Probably 16MHz");
                 },
                 .HSE_DIV_2 => {
                     const mul = pll_config.freq / (8 * MHz);
                     RCC.CFGR.modify(.{ .PLLSRC = 1, .PLLTXPRE = 1, .PLLMUL = getPLLmul(mul) });
-                    @compileError("TODO: figure out HSE frequency. Probably 8MHz");
+                    @compileError("TODO: figure out HSE frequency. Probably 16MHz");
                 },
             }
 
             RCC.CR.modify(.{ .PLLON = 1 });
-            while (RCC.CR.read().PLLREADY != 1) {}
+            while (RCC.CR.read().PLLRDY != 1) {}
         } else {
             RCC.CR.modify(.{ .PLLON = 0 });
-            while (RCC.CR.read().PLLREADY != 0) {}
+            while (RCC.CR.read().PLLRDY != 0) {}
         }
 
         const ahb_freq: u32 = ahb_blk: {
             if (config.ahb_freq) |f| {
-                const divisor = sys.freq / f;
-                // for some reason 32 is not a valid prescaler for AHB
-                if (!isValidPrescaler(divisor, 512) or divisor == 32) {
-                    @compileError(comptimePrint("AHB frequency is too high. Max frequency: {} Hz, got {}", sys.freq / 512, f));
+                comptime {
+                    const divisor = sys.freq / f;
+                    // for some reason 32 is not a valid prescaler for AHB
+                    if (!isValidPrescaler(divisor, 512) or divisor == 32) {
+                        @compileError(comptimePrint("AHB frequency is too low. Min frequency: {} Hz, got {}", .{ sys.freq / 512, f }));
+                    }
                 }
                 break :ahb_blk f;
             }
@@ -148,9 +157,11 @@ pub const GlobalConfiguration = struct {
 
         const apb1_freq: u32 = apb1_blk: {
             if (config.apb1_freq) |f| {
-                const divisor = ahb_freq / f;
-                if (!isValidPrescaler(divisor, 16)) {
-                    @compileError(comptimePrint("Invalid frequency for APB1: {}", f));
+                comptime {
+                    const divisor = ahb_freq / f;
+                    if (!isValidPrescaler(divisor, 16)) {
+                        @compileError(comptimePrint("Invalid frequency for APB1: {}, {}", .{ f, divisor }));
+                    }
                 }
                 break :apb1_blk f;
             }
@@ -159,21 +170,25 @@ pub const GlobalConfiguration = struct {
 
         const apb2_freq: u32 = apb2_blk: {
             if (config.apb2_freq) |f| {
-                const divisor = ahb_freq / f;
-                if (!isValidPrescaler(divisor, 16)) {
-                    @compileError(comptimePrint("Invalid frequency for APB1: {}", f));
+                comptime {
+                    const divisor = ahb_freq / f;
+                    if (!isValidPrescaler(divisor, 16)) {
+                        @compileError(comptimePrint("Invalid frequency for APB1: {}", .{f}));
+                    }
                 }
                 break :apb2_blk f;
             }
             break :apb2_blk ahb_freq;
         };
 
-        if (apb1_freq > 36_000_000) {
-            @compileError(comptimePrint("APB1 frequency is too high. Max frequency: 36 MHz, got {} MHz", apb1_freq / 1_000_000));
-        }
+        comptime {
+            if (apb1_freq > 36_000_000) {
+                @compileError(comptimePrint("APB1 frequency is too high. Max frequency: 36 MHz, got {} MHz", .{apb1_freq / MHz}));
+            }
 
-        if (apb2_freq > 72_000_000) {
-            @compileError(comptimePrint("APB2 frequency is too high. Max frequency: 72 MHz, got {} MHz", apb2_freq / 1_000_000));
+            if (apb2_freq > 72_000_000) {
+                @compileError(comptimePrint("APB2 frequency is too high. Max frequency: 72 MHz, got {} MHz", .{apb2_freq / MHz}));
+            }
         }
 
         switch (sys.source) {
@@ -232,7 +247,7 @@ fn getHPREdiv(comptime d: u32) u4 {
         128 => 0b1101,
         256 => 0b1101,
         512 => 0b1111,
-        else => @compileError("Invalid HPRE"),
+        else => 0b000,
     };
 }
 
@@ -243,14 +258,15 @@ fn getAPPREdiv(comptime d: u32) u3 {
         4 => 0b101,
         8 => 0b110,
         16 => 0b111,
-        else => @compileError("Invalid APRE"),
+        else => 0b000,
     };
 }
 
 fn getPLLmul(comptime m: u32) u4 {
-    if (m < 2 or m > 16) {
-        @compileError("Invalid PLL mul");
+    comptime {
+        if (m < 2 or m > 16) {
+            @compileError(comptimePrint("Invalid PLL mul: {}", .{m}));
+        }
     }
-
     return @as(u4, m - 2);
 }
