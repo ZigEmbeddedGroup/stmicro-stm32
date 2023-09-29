@@ -151,11 +151,11 @@ pub const GlobalConfiguration = struct {
                 },
                 .HSE => {
                     const mul = pll_config.freq / config.hse_freq;
-                    RCC.CFGR.modify(.{ .PLLSRC = 1, .PLLTXPRE = 0, .PLLMUL = getPLLmul(mul) });
+                    RCC.CFGR.modify(.{ .PLLSRC = 1, .PLLXTPRE = 0, .PLLMUL = getPLLmul(mul) });
                 },
                 .HSE_DIV_2 => {
                     const mul = pll_config.freq / (config.hse_freq / 2);
-                    RCC.CFGR.modify(.{ .PLLSRC = 1, .PLLTXPRE = 1, .PLLMUL = getPLLmul(mul) });
+                    RCC.CFGR.modify(.{ .PLLSRC = 1, .PLLXTPRE = 1, .PLLMUL = getPLLmul(mul) });
                 },
             }
 
