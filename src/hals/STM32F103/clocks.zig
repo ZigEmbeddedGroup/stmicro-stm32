@@ -36,6 +36,8 @@ pub const PLLConfig = struct {
 pub const GlobalConfiguration = struct {
     sys: ?SysConfig = null,
     hsi_trim: ?u5 = null,
+    // frequency of external oscillator. Usually 8 MHz
+    hse_freq: u32 = 8 * MHz,
     pll: ?PLLConfig = null,
     ahb_freq: ?u32 = null,
     apb1_freq: ?u32 = null,
@@ -45,8 +47,12 @@ pub const GlobalConfiguration = struct {
         const sys = config.sys orelse .{ .source = .HSI, .freq = 8 * MHz };
 
         comptime {
-            if (sys.freq > 72_000_000) {
+            if (sys.freq > 72 * MHz) {
                 @compileError(comptimePrint("Sys frequency is too high. Max frequency: 72 MHz, got {} MHz", .{sys.freq / MHz}));
+            }
+
+            if (config.hse_freq < 4 * MHz or config.hse_freq > 16 * MHz) {
+                @compileError(comptimePrint("Invalid HSE oscillator: {}. Valid range is from 4 MHz to 16 MHz", .{config.hse_freq / MHz}));
             }
 
             if (config.pll) |pll| {
@@ -55,21 +61,32 @@ pub const GlobalConfiguration = struct {
                 }
             }
 
-            if (sys.source == .PLL) {
-                if (config.pll) |pll| {
-                    if (pll.freq != sys.freq) {
-                        @compileError(comptimePrint("Incompatible sys frequency {} MHz with PLL source {} MHz", .{ sys.freq / MHz, pll.freq / MHz }));
+            const source = @as(SysConfig.Source, sys.source);
+            switch (source) {
+                .HSI => {
+                    if (sys.freq != 8 * MHz) {
+                        @compileError(comptimePrint("Incompatible sys frequency {} MHz with HSI source 8 MHz", .{sys.freq / MHz}));
                     }
-                } else {
-                    @compileError("PLL used as source for sys but not configured");
-                }
+                },
+                .HSE => {
+                    if (sys.freq != config.hse_freq) {
+                        @compileError(comptimePrint("Incompatible sys frequency {} MHz with HSE source {} MHz", .{ sys.freq / MHz, config.hse_freq / MHz }));
+                    }
+                },
+                .PLL => {
+                    if (config.pll) |pll| {
+                        if (pll.freq != sys.freq) {
+                            @compileError(comptimePrint("Incompatible sys frequency {} MHz with PLL source {} MHz", .{ sys.freq / MHz, pll.freq / MHz }));
+                        }
+                    } else {
+                        @compileError("PLL used as source for sys but not configured");
+                    }
+                },
             }
         }
+
         const hsi_enabled = hsi_blk: {
             if (sys.source == .HSI) {
-                if (sys.freq != 8 * MHz) {
-                    @compileError(comptimePrint("Incompatible sys frequency {} MHz with HSI source 8 MHz", .{sys.freq / MHz}));
-                }
                 break :hsi_blk true;
             }
 
@@ -133,14 +150,12 @@ pub const GlobalConfiguration = struct {
                     RCC.CFGR.modify(.{ .PLLSRC = 0, .PLLMUL = getPLLmul(mul) });
                 },
                 .HSE => {
-                    const mul = pll_config.freq / (8 * MHz);
+                    const mul = pll_config.freq / config.hse_freq;
                     RCC.CFGR.modify(.{ .PLLSRC = 1, .PLLTXPRE = 0, .PLLMUL = getPLLmul(mul) });
-                    @compileError("TODO: figure out HSE frequency. Probably 16MHz");
                 },
                 .HSE_DIV_2 => {
-                    const mul = pll_config.freq / (8 * MHz);
+                    const mul = pll_config.freq / (config.hse_freq / 2);
                     RCC.CFGR.modify(.{ .PLLSRC = 1, .PLLTXPRE = 1, .PLLMUL = getPLLmul(mul) });
-                    @compileError("TODO: figure out HSE frequency. Probably 16MHz");
                 },
             }
 
