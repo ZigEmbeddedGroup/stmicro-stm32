@@ -47,21 +47,21 @@ pub const GlobalConfiguration = struct {
         const sys = config.sys orelse .{ .source = .HSI, .freq = 8 * MHz };
 
         comptime var pll_config: ?PLLConfig = null;
-        comptime var pll_mul = 0;
+        comptime var pll_mul: u32 = 0;
 
         comptime var hsi_enabled = false;
         comptime var hse_enabled = false;
 
-        comptime var hse_freq = config.hse_freq orelse 8 * MHz;
+        comptime var hse_freq: u32 = config.hse_freq orelse 8 * MHz;
 
-        comptime var ahb_freq = config.ahb_freq orelse sys.freq;
-        comptime var ahb_div = sys.freq / ahb_freq;
+        comptime var ahb_freq: u32 = config.ahb_freq orelse sys.freq;
+        comptime var ahb_div: u32 = sys.freq / ahb_freq;
 
-        comptime var apb1_freq = config.apb1_freq orelse if (ahb_freq <= 36 * MHz) ahb_freq else 36 * MHz;
+        comptime var apb1_freq: u32 = config.apb1_freq orelse if (ahb_freq <= 36 * MHz) ahb_freq else 36 * MHz;
         comptime var apb1_div = ahb_freq / apb1_freq;
 
-        comptime var apb2_freq = config.apb2_freq orelse if (ahb_freq <= 72 * MHz) ahb_freq else 72 * MHz;
-        comptime var apb2_div = ahb_freq / apb1_freq;
+        comptime var apb2_freq: u32 = config.apb2_freq orelse if (ahb_freq <= 72 * MHz) ahb_freq else 72 * MHz;
+        comptime var apb2_div: u32 = ahb_freq / apb2_freq;
 
         // Do a comptime validation of config
         comptime {
@@ -121,6 +121,7 @@ pub const GlobalConfiguration = struct {
                         }
                     } else {
                         pll_config = .{ .source = .HSE, .freq = sys.freq };
+                        pll_mul = sys.freq / hse_freq;
                         hse_enabled = true;
                     }
                 },
