@@ -2,17 +2,14 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 const microzig = @import("microzig");
-pub const peripherals = microzig.chip.peripherals;
+const peripherals = microzig.chip.peripherals;
 
 const GPIOA = peripherals.GPIOA;
 const GPIOB = peripherals.GPIOB;
-const GPIOC = peripherals.GPIOC;
-const GPIOD = peripherals.GPIOD;
-const GPIOE = peripherals.GPIOE;
-const GPIOF = peripherals.GPIOF;
-const GPIOG = peripherals.GPIOG;
+const GPIO = microzig.chip.types.peripherals.GPIOA;
 
-const GPIO = @TypeOf(GPIOA);
+// NOTE: Apparently GPIO ports are not one next to the other
+const GPIOoffset = @intFromPtr(GPIOB) - @intFromPtr(GPIOA);
 
 const log = std.log.scoped(.gpio);
 
@@ -94,19 +91,10 @@ pub const Pin = packed struct(u8) {
         return @as(u16, 1) << gpio.number;
     }
 
-    // NOTE: Im not sure I like this
-    //       We could probably calculate an offset from GPIOA?
-    pub fn get_port(gpio: Pin) GPIO {
-        return switch (gpio.port) {
-            0 => GPIOA,
-            1 => GPIOB,
-            2 => GPIOC,
-            3 => GPIOD,
-            4 => GPIOE,
-            5 => GPIOF,
-            6 => GPIOG,
-            7 => @panic("The STM32 only has ports 0..6 (A..G)"),
-        };
+    pub fn get_port(gpio: Pin) *volatile GPIO {
+        assert(gpio.port < 7);
+        const port: *volatile GPIO = @ptrFromInt(@intFromPtr(GPIOA) + (GPIOoffset * gpio.port));
+        return port;
     }
 
     pub inline fn set_mode(gpio: Pin, mode: Mode) void {
