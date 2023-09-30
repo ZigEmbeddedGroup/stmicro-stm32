@@ -79,9 +79,21 @@ pub const GlobalConfiguration = struct {
                             @compileError(comptimePrint("Incompatible sys frequency {} MHz with PLL source {} MHz", .{ sys.freq / MHz, pll.freq / MHz }));
                         }
                     } else {
-                        @compileError("PLL used as source for sys but not configured");
+                        @compileError("PLL used as sys source but not configured");
                     }
                 },
+            }
+
+            if (config.ahb_freq > 72 * MHz) {
+                @compileError(comptimePrint("AHB frequency is too high. Max frequency: 72 MHz, got {} MHz", .{config.ahb_freq / MHz}));
+            }
+
+            if (config.apb1_freq > 36 * MHz) {
+                @compileError(comptimePrint("APB1 frequency is too high. Max frequency: 36 MHz, got {} MHz", .{config.apb1_freq / MHz}));
+            }
+
+            if (config.apb2_freq > 72 * MHz) {
+                @compileError(comptimePrint("APB2 frequency is too high. Max frequency: 72 MHz, got {} MHz", .{config.apb2_freq / MHz}));
             }
         }
 
@@ -113,8 +125,6 @@ pub const GlobalConfiguration = struct {
             break :hse_blk false;
         };
 
-        const pll_enabled = config.pll != null;
-
         FLASH.ACR.modify(.{ .PRFTBE = 1 });
         if (sys.freq <= 24 * MHz) {
             FLASH.ACR.modify(.{ .LATENCY = 0b000 });
@@ -138,12 +148,11 @@ pub const GlobalConfiguration = struct {
             while (RCC.CR.read().HSERDY != 0) {}
         }
 
-        if (pll_enabled) {
+        if (config.pll) |pll_config| {
             // we need to turn off the pll to configure it
             RCC.CR.modify(.{ .PLLON = 0 });
             while (RCC.CR.read().PLLRDY != 0) {}
 
-            const pll_config = config.pll.?;
             switch (pll_config.source) {
                 .HSI_DIV_2 => {
                     const mul = pll_config.freq / (4 * MHz);
@@ -190,7 +199,10 @@ pub const GlobalConfiguration = struct {
                 }
                 break :apb1_blk f;
             }
-            break :apb1_blk ahb_freq;
+            break :apb1_blk if (ahb_freq <= 36 * MHz)
+                ahb_freq
+            else
+                36 * MHz;
         };
 
         const apb2_freq: u32 = apb2_blk: {
@@ -203,18 +215,13 @@ pub const GlobalConfiguration = struct {
                 }
                 break :apb2_blk f;
             }
-            break :apb2_blk ahb_freq;
+            break :apb2_blk if (ahb_freq <= 72 * MHz)
+                ahb_freq
+            else
+                72 * MHz;
         };
 
-        comptime {
-            if (apb1_freq > 36_000_000) {
-                @compileError(comptimePrint("APB1 frequency is too high. Max frequency: 36 MHz, got {} MHz", .{apb1_freq / MHz}));
-            }
-
-            if (apb2_freq > 72_000_000) {
-                @compileError(comptimePrint("APB2 frequency is too high. Max frequency: 72 MHz, got {} MHz", .{apb2_freq / MHz}));
-            }
-        }
+        comptime {}
 
         switch (sys.source) {
             .HSI => {
