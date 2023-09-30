@@ -84,16 +84,22 @@ pub const GlobalConfiguration = struct {
                 },
             }
 
-            if (config.ahb_freq > 72 * MHz) {
-                @compileError(comptimePrint("AHB frequency is too high. Max frequency: 72 MHz, got {} MHz", .{config.ahb_freq / MHz}));
+            if (config.ahb_freq) |f| {
+                if (f > 72 * MHz) {
+                    @compileError(comptimePrint("AHB frequency is too high. Max frequency: 72 MHz, got {} MHz", .{f / MHz}));
+                }
             }
 
-            if (config.apb1_freq > 36 * MHz) {
-                @compileError(comptimePrint("APB1 frequency is too high. Max frequency: 36 MHz, got {} MHz", .{config.apb1_freq / MHz}));
+            if (config.apb1_freq) |f| {
+                if (f > 36 * MHz) {
+                    @compileError(comptimePrint("APB1 frequency is too high. Max frequency: 36 MHz, got {} MHz", .{f / MHz}));
+                }
             }
 
-            if (config.apb2_freq > 72 * MHz) {
-                @compileError(comptimePrint("APB2 frequency is too high. Max frequency: 72 MHz, got {} MHz", .{config.apb2_freq / MHz}));
+            if (config.apb2_freq) |f| {
+                if (f > 72 * MHz) {
+                    @compileError(comptimePrint("APB2 frequency is too high. Max frequency: 72 MHz, got {} MHz", .{f / MHz}));
+                }
             }
         }
 
