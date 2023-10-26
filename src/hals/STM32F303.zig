@@ -109,7 +109,7 @@ pub const gpio = struct {
 
     pub fn read(comptime pin: type) microzig_gpio.State {
         const idr_reg = pin.gpio_port.IDR;
-        const reg_value = @field(idr_reg.read(), "IDR" ++ pin.suffix); // TODO extract to getRegField()?
+        const reg_value = @field(idr_reg.read(), "IDR" ++ pin.suffix); // TODO extract to get_reg_field()?
         return @as(microzig_gpio.State, @enumFromInt(reg_value));
     }
 
@@ -530,7 +530,7 @@ pub fn SpiBus(comptime index: usize) type {
         }
 
         /// Switch this SPI bus to the given device.
-        pub fn switchToDevice(_: Self, comptime cs_pin: type, config: microzig_spi.DeviceConfig) void {
+        pub fn switch_to_device(_: Self, comptime cs_pin: type, config: microzig_spi.DeviceConfig) void {
             _ = config; // for future use
 
             SPI1.CR1.modify(.{
@@ -542,7 +542,7 @@ pub fn SpiBus(comptime index: usize) type {
             gpio.set_output(cs_pin);
         }
 
-        /// Begin a transfer to the given device.  (Assumes `switchToDevice()` was called.)
+        /// Begin a transfer to the given device.  (Assumes `switch_to_device()` was called.)
         pub fn begin_transfer(_: Self, comptime cs_pin: type, config: microzig_spi.DeviceConfig) void {
             _ = config; // for future use
             gpio.write(cs_pin, .low); // select the given device, TODO: support inverse CS devices
