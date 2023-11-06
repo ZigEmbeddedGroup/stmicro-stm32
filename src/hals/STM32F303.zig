@@ -262,7 +262,9 @@ pub fn Uart(comptime index: usize, comptime pins: microzig_uart.Pins) type {
         pub fn rx(self: Self) u8 {
             while (!self.can_read()) {} // Wait till the data is received
             const data_with_parity_bit: u9 = USART1.RDR.read().RDR;
-            return @as(u8, @intCast(data_with_parity_bit & self.parity_read_mask));
+            const result: u8 = @intCast(data_with_parity_bit & self.parity_read_mask);
+            std.mem.doNotOptimizeAway(result); // work around https://github.com/ziglang/zig/issues/17882
+            return result;
         }
     };
 }
@@ -624,7 +626,9 @@ pub fn SpiBus(comptime index: usize) type {
                 // read
                 var data_read = SPI1.DR.raw;
                 _ = SPI1.SR.read(); // clear overrun flag
-                const dr_lsb = @as([dr_byte_size]u8, @bitCast(data_read))[0];
+                const dr: [dr_byte_size]u8 = @bitCast(data_read);
+                std.mem.doNotOptimizeAway(dr); // work around https://github.com/ziglang/zig/issues/17882
+                const dr_lsb = dr[0];
                 debug_print("Received: {X:2} (DR = {X:8}).\r\n", .{ dr_lsb, data_read });
                 if (optional_read_pointer) |read_pointer| read_pointer.* = dr_lsb;
             }
