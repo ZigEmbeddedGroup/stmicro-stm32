@@ -37,16 +37,23 @@
 const std = @import("std");
 const runtime_safety = std.debug.runtime_safety;
 
-const micro = @import("microzig");
-const SPI1 = micro.peripherals.SPI1;
-const RCC = micro.peripherals.RCC;
-const USART1 = micro.peripherals.USART1;
-const GPIOA = micro.peripherals.GPIOA;
-const GPIOB = micro.peripherals.GPIOB;
-const GPIOC = micro.peripherals.GPIOC;
-const I2C1 = micro.peripherals.I2C1;
+const microzig = @import("microzig");
+const peripherals = microzig.chip.peripherals;
+const SPI1 = peripherals.SPI1;
+const RCC = peripherals.RCC;
+const USART1 = peripherals.USART1;
+const GPIOA = peripherals.GPIOA;
+const GPIOB = peripherals.GPIOB;
+const GPIOC = peripherals.GPIOC;
+const I2C1 = peripherals.I2C1;
 
-pub const cpu = @import("cpu");
+// NOTE that these are not needed anymore once this file is split up into separate files
+const microzig_debug = microzig.core.experimental.debug;
+const microzig_uart = microzig.core.experimental.uart;
+const microzig_i2c = microzig.core.experimental.i2c;
+const microzig_spi = microzig.core.experimental.spi;
+const microzig_gpio = microzig.core.experimental.gpio;
+const microzig_clock = microzig.core.experimental.clock;
 
 pub const clock = struct {
     pub const Domain = enum {
@@ -78,7 +85,7 @@ pub fn parse_pin(comptime spec: []const u8) type {
     return struct {
         /// 'A'...'H'
         const gpio_port_name = spec[1..2];
-        const gpio_port = @field(micro.peripherals, "GPIO" ++ gpio_port_name);
+        const gpio_port = @field(peripherals, "GPIO" ++ gpio_port_name);
         const suffix = std.fmt.comptimePrint("{d}", .{pin_number});
     };
 }
@@ -91,25 +98,25 @@ fn set_reg_field(reg: anytype, comptime field_name: anytype, value: anytype) voi
 
 pub const gpio = struct {
     pub fn set_output(comptime pin: type) void {
-        set_reg_field(RCC.AHBENR, "IOP" ++ pin.gpio_port_name ++ "EN", 1);
-        set_reg_field(@field(pin.gpio_port, "MODER"), "MODER" ++ pin.suffix, 0b01);
+        set_reg_field(&(RCC.AHBENR), "IOP" ++ pin.gpio_port_name ++ "EN", 1);
+        set_reg_field(&@field(pin.gpio_port, "MODER"), "MODER" ++ pin.suffix, 0b01);
     }
 
     pub fn set_input(comptime pin: type) void {
-        set_reg_field(RCC.AHBENR, "IOP" ++ pin.gpio_port_name ++ "EN", 1);
-        set_reg_field(@field(pin.gpio_port, "MODER"), "MODER" ++ pin.suffix, 0b00);
+        set_reg_field(&(RCC.AHBENR), "IOP" ++ pin.gpio_port_name ++ "EN", 1);
+        set_reg_field(&@field(pin.gpio_port, "MODER"), "MODER" ++ pin.suffix, 0b00);
     }
 
-    pub fn read(comptime pin: type) micro.gpio.State {
+    pub fn read(comptime pin: type) microzig_gpio.State {
         const idr_reg = pin.gpio_port.IDR;
-        const reg_value = @field(idr_reg.read(), "IDR" ++ pin.suffix); // TODO extract to getRegField()?
-        return @as(micro.gpio.State, @enumFromInt(reg_value));
+        const reg_value = @field(idr_reg.read(), "IDR" ++ pin.suffix); // TODO extract to get_reg_field()?
+        return @as(microzig_gpio.State, @enumFromInt(reg_value));
     }
 
-    pub fn write(comptime pin: type, state: micro.gpio.State) void {
+    pub fn write(comptime pin: type, state: microzig_gpio.State) void {
         switch (state) {
-            .low => set_reg_field(pin.gpio_port.BRR, "BR" ++ pin.suffix, 1),
-            .high => set_reg_field(pin.gpio_port.BSRR, "BS" ++ pin.suffix, 1),
+            .low => set_reg_field(&(pin.gpio_port.BRR), "BR" ++ pin.suffix, 1),
+            .high => set_reg_field(&(pin.gpio_port.BSRR), "BS" ++ pin.suffix, 1),
         }
     }
 };
@@ -135,7 +142,7 @@ pub const uart = struct {
     };
 };
 
-pub fn Uart(comptime index: usize, comptime pins: micro.uart.Pins) type {
+pub fn Uart(comptime index: usize, comptime pins: microzig_uart.Pins) type {
     if (!(index == 1)) @compileError("TODO: only USART1 is currently supported");
     if (pins.tx != null or pins.rx != null)
         @compileError("TODO: custom pins are not currently supported");
@@ -145,7 +152,7 @@ pub fn Uart(comptime index: usize, comptime pins: micro.uart.Pins) type {
 
         const Self = @This();
 
-        pub fn init(config: micro.uart.Config) !Self {
+        pub fn init(config: microzig_uart.Config) !Self {
             // The following must all be written when the USART is disabled (UE=0).
             if (USART1.CR1.read().UE == 1)
                 @panic("Trying to initialize USART1 while it is already enabled");
@@ -175,8 +182,9 @@ pub fn Uart(comptime index: usize, comptime pins: micro.uart.Pins) type {
             // and M0==1 means 'the 9th bit (not the 8th bit) is the parity bit'.
             const m1: u1 = if (config.data_bits == .seven and config.parity == null) 1 else 0;
             const m0: u1 = if (config.data_bits == .eight and config.parity != null) 1 else 0;
-            // Note that .padding0 = bit 28 = .M1 (.svd file bug?), and .M == .M0.
-            USART1.CR1.modify(.{ .padding0 = m1, .M = m0 });
+            // Note that .padding&0b1 = bit 28 = .M1 (.svd file bug?), and .M == .M0.
+            const padding = USART1.CR1.read().padding & 0b1110;
+            USART1.CR1.modify(.{ .padding = padding | m1, .M = m0 });
 
             // set parity
             if (config.parity) |parity| {
@@ -193,7 +201,7 @@ pub fn Uart(comptime index: usize, comptime pins: micro.uart.Pins) type {
             // if the board doesn't configure e.g. an HSE external crystal.
             // TODO: Do some checks to see if the baud rate is too high (or perhaps too low)
             // TODO: Do a rounding div, instead of a truncating div?
-            const usartdiv = @as(u16, @intCast(@divTrunc(micro.clock.get().apb1, config.baud_rate)));
+            const usartdiv = @as(u16, @intCast(@divTrunc(microzig_clock.get().apb1, config.baud_rate)));
             USART1.BRR.raw = usartdiv;
             // Above, ignore the BRR struct fields DIV_Mantissa and DIV_Fraction,
             // those seem to be for another chipset; .svd file bug?
@@ -210,7 +218,7 @@ pub fn Uart(comptime index: usize, comptime pins: micro.uart.Pins) type {
             return read_from_registers();
         }
 
-        pub fn get_or_init(config: micro.uart.Config) !Self {
+        pub fn get_or_init(config: microzig_uart.Config) !Self {
             if (USART1.CR1.read().UE == 1) {
                 // UART1 already enabled, don't reinitialize and disturb things;
                 // instead read and use the actual configuration.
@@ -236,7 +244,7 @@ pub fn Uart(comptime index: usize, comptime pins: micro.uart.Pins) type {
 
         pub fn tx(self: Self, ch: u8) void {
             while (!self.can_write()) {} // Wait for Previous transmission
-            USART1.TDR.modify(ch);
+            USART1.TDR.modify(.{ .TDR = ch });
         }
 
         pub fn txflush(_: Self) void {
@@ -254,7 +262,9 @@ pub fn Uart(comptime index: usize, comptime pins: micro.uart.Pins) type {
         pub fn rx(self: Self) u8 {
             while (!self.can_read()) {} // Wait till the data is received
             const data_with_parity_bit: u9 = USART1.RDR.read().RDR;
-            return @as(u8, @intCast(data_with_parity_bit & self.parity_read_mask));
+            const result: u8 = @intCast(data_with_parity_bit & self.parity_read_mask);
+            std.mem.doNotOptimizeAway(result); // work around https://github.com/ziglang/zig/issues/17882
+            return result;
         }
     };
 }
@@ -263,12 +273,12 @@ const enable_stm32f303_debug = false;
 
 fn debug_print(comptime format: []const u8, args: anytype) void {
     if (enable_stm32f303_debug) {
-        micro.debug.writer().print(format, args) catch {};
+        microzig_debug.writer().print(format, args) catch {};
     }
 }
 
 /// This implementation does not use AUTOEND=1
-pub fn I2CController(comptime index: usize, comptime pins: micro.i2c.Pins) type {
+pub fn I2CController(comptime index: usize, comptime pins: microzig_i2c.Pins) type {
     if (!(index == 1)) @compileError("TODO: only I2C1 is currently supported");
     if (pins.scl != null or pins.sda != null)
         @compileError("TODO: custom pins are not currently supported");
@@ -276,7 +286,7 @@ pub fn I2CController(comptime index: usize, comptime pins: micro.i2c.Pins) type 
     return struct {
         const Self = @This();
 
-        pub fn init(config: micro.i2c.Config) !Self {
+        pub fn init(config: microzig_i2c.Config) !Self {
             // CONFIGURE I2C1
             // connected to APB1, MCU pins PB6 + PB7 = I2C1_SCL + I2C1_SDA,
             // if GPIO port B is configured for alternate function 4 for these PB pins.
@@ -334,7 +344,7 @@ pub fn I2CController(comptime index: usize, comptime pins: micro.i2c.Pins) type 
             }
 
             pub fn write_all(self: *WriteState, bytes: []const u8) !void {
-                debug_print("I2C1 writeAll() with {d} byte(s); buffer={any}\r\n", .{ bytes.len, self.buffer[0..self.buffer_size] });
+                debug_print("I2C1 write_all() with {d} byte(s); buffer={any}\r\n", .{ bytes.len, self.buffer[0..self.buffer_size] });
 
                 std.debug.assert(self.buffer_size < 255);
                 for (bytes) |b| {
@@ -347,7 +357,7 @@ pub fn I2CController(comptime index: usize, comptime pins: micro.i2c.Pins) type 
             }
 
             fn send_buffer(self: *WriteState, reload: u1) !void {
-                debug_print("I2C1 sendBuffer() with {d} byte(s); RELOAD={d}; buffer={any}\r\n", .{ self.buffer_size, reload, self.buffer[0..self.buffer_size] });
+                debug_print("I2C1 send_buffer() with {d} byte(s); RELOAD={d}; buffer={any}\r\n", .{ self.buffer_size, reload, self.buffer[0..self.buffer_size] });
                 if (self.buffer_size == 0) @panic("write of 0 bytes not supported");
 
                 std.debug.assert(reload == 0 or self.buffer_size == 255); // see TODOs below
@@ -481,7 +491,7 @@ pub fn SpiBus(comptime index: usize) type {
         const Self = @This();
 
         /// Initialize and enable the bus.
-        pub fn init(config: micro.spi.BusConfig) !Self {
+        pub fn init(config: microzig_spi.BusConfig) !Self {
             _ = config; // unused for now
 
             // CONFIGURE SPI1
@@ -491,7 +501,7 @@ pub fn SpiBus(comptime index: usize) type {
             // Enable the GPIO CLOCK
             RCC.AHBENR.modify(.{ .IOPAEN = 1 });
 
-            // Configure the I2C PINs for ALternate Functions
+            // Configure the SPI PINs for Alternate Functions
             // 	- Select Alternate Function in MODER Register
             GPIOA.MODER.modify(.{ .MODER5 = 0b10, .MODER6 = 0b10, .MODER7 = 0b10 });
             // 	- Select High SPEED for the PINs
@@ -507,9 +517,11 @@ pub fn SpiBus(comptime index: usize) type {
                 .SSM = 1,
                 .SSI = 1,
                 .RXONLY = 0,
+                // TODO: drive BIDIMODE via this driver too
+                .BIDIOE = 1, // so that we can set BIDIOE=0 to start reading, in BIDIMODE=1
                 .SPE = 1,
             });
-            // the following configuration is assumed in `transceiveByte()`
+            // the following configuration is assumed in `transceive_byte()`
             SPI1.CR2.raw = 0;
             SPI1.CR2.modify(.{
                 .DS = 0b0111, // 8-bit data frames, seems default via '0b0000 is interpreted as 0b0111'
@@ -520,7 +532,7 @@ pub fn SpiBus(comptime index: usize) type {
         }
 
         /// Switch this SPI bus to the given device.
-        pub fn switch_to_device(_: Self, comptime cs_pin: type, config: micro.spi.DeviceConfig) void {
+        pub fn switch_to_device(_: Self, comptime cs_pin: type, config: microzig_spi.DeviceConfig) void {
             _ = config; // for future use
 
             SPI1.CR1.modify(.{
@@ -532,45 +544,94 @@ pub fn SpiBus(comptime index: usize) type {
             gpio.set_output(cs_pin);
         }
 
-        /// Begin a transfer to the given device.  (Assumes `switchToDevice()` was called.)
-        pub fn begin_transfer(_: Self, comptime cs_pin: type, config: micro.spi.DeviceConfig) void {
+        /// Begin a transfer to the given device.  (Assumes `switch_to_device()` was called.)
+        pub fn begin_transfer(_: Self, comptime cs_pin: type, config: microzig_spi.DeviceConfig) void {
             _ = config; // for future use
             gpio.write(cs_pin, .low); // select the given device, TODO: support inverse CS devices
             debug_print("enabled SPI1\r\n", .{});
         }
 
         /// The basic operation in the current simplistic implementation:
-        /// send+receive a single byte.
-        /// Writing `null` writes an arbitrary byte (`undefined`), and
-        /// reading into `null` ignores the value received.
+        /// - in 4-wire / full-duplex mode, send+receive a single byte at the same time;
+        /// - in 3-wire / half-duplex / bidi mode, either send or receive a byte.
+        ///
+        /// In 4-wire mode, writing `null` writes an arbitrary byte (`undefined`),
+        /// and reading into `null` ignores the value received.
         pub fn transceive_byte(_: Self, optional_write_byte: ?u8, optional_read_pointer: ?*u8) !void {
+            var bidi_mode = SPI1.CR1.read().BIDIMODE == 1;
+
+            if (bidi_mode) {
+                debug_print("SPI1 is in BIDIMODE\r\n", .{});
+                // in BIDI mode we obviously cannot read and write at the same time
+                std.debug.assert((optional_read_pointer == null) != (optional_write_byte == null));
+            }
 
             // SPIx_DR's least significant byte is `@bitCast([dr_byte_size]u8, ...)[0]`
             const dr_byte_size = @sizeOf(@TypeOf(SPI1.DR.raw));
+            if (!bidi_mode or optional_write_byte != null) {
+                // In bidi mode there nothing special to do for writes,
+                // since we set BIDOE=1 ('bidi output enable') as the default,
+                // so the traffic by default goes from master to slave.
+                //
+                // The only thing that seems to be necessary,
+                // is to wait for the write to complete
+                // before anything else can be done with this SPI bus,
+                // and we do currently do this immediately after the write.
+                // We do this by waiting until BSY == 0.
+                // This seems to be undocumented, but does seem to work.
 
-            // wait unril ready for write
-            while (SPI1.SR.read().TXE == 0) {
-                debug_print("SPI1 TXE == 0\r\n", .{});
+                // wait until ready for write
+                while (SPI1.SR.read().TXE == 0) {
+                    debug_print("SPI1 TXE == 0\r\n", .{});
+                }
+                debug_print("SPI1 TXE == 1\r\n", .{});
+
+                // write
+                const write_byte = if (optional_write_byte) |b| b else undefined; // dummy value
+                @as(*volatile [dr_byte_size]u8, @ptrCast(&(SPI1.DR.raw))).*[0] = write_byte;
+                debug_print("Sent: {X:2}.\r\n", .{write_byte});
+                if (bidi_mode) {
+                    // wait for the bi-directional line to be 'free'
+                    while (SPI1.SR.read().BSY == 1) {}
+                    debug_print("SPI1.SR.BSY == 0.\r\n", .{});
+                }
             }
-            debug_print("SPI1 TXE == 1\r\n", .{});
+            if (!bidi_mode or optional_read_pointer != null) {
+                if (bidi_mode) {
+                    // In bidi mode, we set BIDIOE=0 (disable bidi output),
+                    // which is a mode where the bus starts to read continuously,
+                    // then wait until the receive bugger has data (RXNE == 1).
+                    // and finally immediately (!) set BIDIOE=1 again.
+                    // This seems to be undocumented, but does seem to work.
+                    //
+                    // The alternative, it seems, is to wait for a calculated amount of time,
+                    // like some official library does, see
+                    // https://github.com/STMicroelectronics/32l476gdiscovery-bsp/blob/b58c2cf65d4343c50801aba5f4d256c47c7e3380/stm32l476g_discovery.c#L709-L716
+                    // (found via https://community.st.com/t5/stm32-mcus-products/strange-spi-receive-routine-in-cube-example-code/m-p/413077).
+                    SPI1.CR1.modify(.{ .BIDIOE = 0 });
+                }
 
-            // write
-            const write_byte = if (optional_write_byte) |b| b else undefined; // dummy value
-            @as([dr_byte_size]u8, @bitCast(SPI1.DR.*))[0] = write_byte;
-            debug_print("Sent: {X:2}.\r\n", .{write_byte});
+                // wait until read processed
+                while (SPI1.SR.read().RXNE == 0) {
+                    // no debug_print() here, since that would take way too much time,
+                    // and in bidi mode BIDIOE=1 would be set too late,
+                    // causing more bytes to be read.
+                }
+                if (bidi_mode) {
+                    SPI1.CR1.modify(.{ .BIDIOE = 1 });
+                    debug_print("BIDIOE set to 1 again\r\n", .{});
+                }
+                debug_print("SPI1 RXNE == 1\r\n", .{});
 
-            // wait until read processed
-            while (SPI1.SR.read().RXNE == 0) {
-                debug_print("SPI1 RXNE == 0\r\n", .{});
+                // read
+                var data_read = SPI1.DR.raw;
+                _ = SPI1.SR.read(); // clear overrun flag
+                const dr: [dr_byte_size]u8 = @bitCast(data_read);
+                std.mem.doNotOptimizeAway(dr); // work around https://github.com/ziglang/zig/issues/17882
+                const dr_lsb = dr[0];
+                debug_print("Received: {X:2} (DR = {X:8}).\r\n", .{ dr_lsb, data_read });
+                if (optional_read_pointer) |read_pointer| read_pointer.* = dr_lsb;
             }
-            debug_print("SPI1 RXNE == 1\r\n", .{});
-
-            // read
-            var data_read = SPI1.DR.raw;
-            _ = SPI1.SR.read(); // clear overrun flag
-            const dr_lsb = @as([dr_byte_size]u8, @bitCast(data_read))[0];
-            debug_print("Received: {X:2} (DR = {X:8}).\r\n", .{ dr_lsb, data_read });
-            if (optional_read_pointer) |read_pointer| read_pointer.* = dr_lsb;
         }
 
         /// Write all given bytes on the bus, not reading anything back.
@@ -587,7 +648,7 @@ pub fn SpiBus(comptime index: usize) type {
             }
         }
 
-        pub fn end_transfer(_: Self, comptime cs_pin: type, config: micro.spi.DeviceConfig) void {
+        pub fn end_transfer(_: Self, comptime cs_pin: type, config: microzig_spi.DeviceConfig) void {
             _ = config; // for future use
             // no delay should be needed here, since we know SPIx_SR's TXE is 1
             debug_print("(disabling SPI1)\r\n", .{});

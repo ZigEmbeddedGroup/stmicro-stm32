@@ -49,6 +49,9 @@ pub const chips = struct {
                 .json = .{ .cwd_relative = build_root ++ "/src/chips/STM32F303.json" },
             },
         },
+        .hal = .{
+            .source_file = .{ .cwd_relative = build_root ++ "/src/hals/STM32F303.zig" },
+        },
     };
 
     pub const stm32f407vg = .{
@@ -190,6 +193,7 @@ pub const boards = struct {
     pub const stm32f3discovery = .{
         .preferred_format = .elf,
         .chip = chips.stm32f303vc.chip,
+        .hal = chips.stm32f303vc.hal,
         .board = .{
             .name = "STM32F3DISCOVERY",
             .source_file = .{ .path = build_root ++ "/src/boards/STM32F3DISCOVERY.zig" },
